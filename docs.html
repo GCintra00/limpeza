@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Limpeza do Sistema - Documentacao</title>
+<style>
+body { font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; color: #333; line-height: 1.6; }
+h1 { color: #e53935; border-bottom: 3px solid #e53935; padding-bottom: 10px; }
+h2 { color: #333; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-top: 40px; }
+h3 { color: #555; margin-top: 25px; }
+.comando { background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 6px; font-family: 'Consolas', monospace; font-size: 14px; overflow-x: auto; margin: 10px 0; word-break: break-all; }
+.aviso { background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px 15px; margin: 15px 0; border-radius: 0 6px 6px 0; }
+.perigo { background: #fce4e4; border-left: 4px solid #e53935; padding: 12px 15px; margin: 15px 0; border-radius: 0 6px 6px 0; }
+.info { background: #d1ecf1; border-left: 4px solid #17a2b8; padding: 12px 15px; margin: 15px 0; border-radius: 0 6px 6px 0; }
+.sucesso { background: #d4edda; border-left: 4px solid #28a745; padding: 12px 15px; margin: 15px 0; border-radius: 0 6px 6px 0; }
+table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+th, td { border: 1px solid #ddd; padding: 10px 12px; text-align: left; }
+th { background: #f5f5f5; font-weight: bold; }
+tr:nth-child(even) { background: #fafafa; }
+code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-family: 'Consolas', monospace; font-size: 13px; }
+.step { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px 20px; margin: 15px 0; }
+.step-number { display: inline-block; background: #e53935; color: white; width: 28px; height: 28px; border-radius: 50%; text-align: center; line-height: 28px; font-weight: bold; margin-right: 8px; }
+.step-blue { background: #1a73e8; }
+.tutorial-card {
+    background: #fff; border: 1px solid #e0e0e0; border-radius: 12px;
+    padding: 20px; margin: 15px 0; display: flex; gap: 20px; align-items: flex-start;
+}
+.tutorial-icon {
+    font-size: 48px; flex-shrink: 0; width: 60px; text-align: center;
+}
+.tutorial-content { flex: 1; }
+.tutorial-content h4 { margin: 0 0 8px 0; color: #1a73e8; }
+.tutorial-content p { margin: 0; color: #555; font-size: 0.95rem; }
+.tutorial-content ol, .tutorial-content ul { margin: 8px 0 0 0; color: #555; font-size: 0.95rem; }
+.screenshot-box {
+    background: #f5f5f5; border: 2px dashed #ccc; border-radius: 8px;
+    padding: 15px; margin: 10px 0; text-align: center; color: #888;
+    min-height: 120px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+}
+.screenshot-box img { max-width: 100%; border-radius: 6px; border: 1px solid #ddd; }
+.path-visual {
+    background: #f0f4ff; border: 1px solid #c5d5ff; border-radius: 8px;
+    padding: 12px 16px; margin: 8px 0; font-size: 0.9rem; color: #333;
+    display: flex; align-items: center; gap: 8px;
+}
+.path-visual .arrow { color: #1a73e8; font-weight: bold; }
+.checklist { list-style: none; padding: 0; }
+.checklist li { padding: 8px 0; border-bottom: 1px solid #eee; }
+.checklist li:last-child { border-bottom: none; }
+.checklist li::before { content: "☐ "; color: #e53935; font-size: 1.2rem; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 12px; margin: 2px; }
+.tag-apaga { background: #fce4e4; color: #c0392b; }
+.tag-mantem { background: #d4edda; color: #155724; }
+.resultado-box {
+    background: #1e1e1e; color: #aaa; padding: 20px; border-radius: 8px;
+    font-family: 'Consolas', monospace; font-size: 14px; margin: 15px 0;
+}
+.resultado-box .cyan { color: #4fc3f7; }
+.resultado-box .yellow { color: #ffd740; }
+.resultado-box .green { color: #69f0ae; }
+.resultado-box .gray { color: #888; }
+</style>
+</head>
+<body>
+
+<h1>Limpeza do Sistema</h1>
+<p><strong>Ferramenta de manutencao</strong> &nbsp;|&nbsp; <strong>Windows 10 e 11</strong> &nbsp;|&nbsp; <strong>PowerShell</strong></p>
+
+<div class="perigo">
+<strong>ATENCAO:</strong> Esta ferramenta <strong>apaga cache e dados temporarios de TODOS os navegadores</strong> do computador. Se o usuario nao sincronizou o Chrome (ou outro navegador), pode perder favoritos, senhas salvas localmente e sessoes abertas. <strong>Leia a secao "Antes de Usar" abaixo.</strong>
+</div>
+
+<!-- ============================= -->
+<h2>O Que a Ferramenta Faz</h2>
+<!-- ============================= -->
+
+<p>O script executa uma limpeza completa do sistema em <strong>7 etapas automaticas</strong>, seguida de uma verificacao de integridade:</p>
+
+<table>
+<tr><th>Etapa</th><th>Acao</th><th>O que apaga</th></tr>
+<tr><td>1</td><td>Fecha navegadores</td><td>Encerra Chrome, Edge, Firefox, Brave, Vivaldi, Opera, IE</td></tr>
+<tr><td>2</td><td>Esvazia lixeira</td><td>Todo o conteudo da lixeira</td></tr>
+<tr><td>3</td><td>Limpa temporarios</td><td>Pasta Temp de todos os usuarios + Windows\Temp</td></tr>
+<tr><td>4</td><td>Limpa logs</td><td>Logs do Windows (CBS, Panther, .NET, OneDrive, etc.)</td></tr>
+<tr><td>5</td><td>Limpa cache Windows</td><td>Thumbnails, WebCache, INetCache, Terminal Server</td></tr>
+<tr><td>6</td><td>Limpa navegadores</td><td>Cache, cookies, Service Workers de TODOS os navegadores</td></tr>
+<tr><td>7</td><td>Limpa Adobe</td><td>Adobe Media Cache</td></tr>
+<tr><td>Final</td><td>SFC /scannow</td><td>Verifica e repara arquivos do sistema</td></tr>
+</table>
+
+<h3>O que e apagado nos navegadores</h3>
+
+<table>
+<tr><th>Apagado</th><th>NAO apagado</th></tr>
+<tr>
+    <td>
+        <span class="tag tag-apaga">Cache de paginas</span>
+        <span class="tag tag-apaga">Cookies</span>
+        <span class="tag tag-apaga">Service Workers</span>
+        <span class="tag tag-apaga">GPU Cache</span>
+        <span class="tag tag-apaga">Code Cache</span>
+        <span class="tag tag-apaga">Sessoes abertas</span>
+    </td>
+    <td>
+        <span class="tag tag-mantem">Favoritos (se sincronizados)</span>
+        <span class="tag tag-mantem">Senhas (se sincronizadas)</span>
+        <span class="tag tag-mantem">Extensoes</span>
+        <span class="tag tag-mantem">Configuracoes</span>
+    </td>
+</tr>
+</table>
+
+<div class="aviso">
+<strong>Importante:</strong> Apos a limpeza, o usuario sera <strong>deslogado de todos os sites</strong> (Gmail, Facebook, banco, etc.). Ele precisara fazer login novamente. Se as senhas estavam salvas apenas localmente (sem sincronizacao), elas serao perdidas.
+</div>
+
+<!-- ============================= -->
+<h2>Antes de Usar (Obrigatorio)</h2>
+<!-- ============================= -->
+
+<p>Antes de rodar a ferramenta no computador de um usuario, siga este checklist para garantir que nada importante sera perdido:</p>
+
+<div class="perigo">
+<strong>Regra de ouro:</strong> Se o Chrome esta logado e sincronizando, favoritos e senhas estao seguros na nuvem. Se NAO esta logado, tudo que esta salvo localmente pode ser perdido.
+</div>
+
+<!-- Tutorial 1: Verificar sincronizacao do Chrome -->
+<h3>1. Verificar se o Chrome esta sincronizando</h3>
+
+<div class="tutorial-card">
+    <div class="tutorial-icon">&#128269;</div>
+    <div class="tutorial-content">
+        <h4>Como verificar</h4>
+        <ol>
+            <li>Abra o <strong>Google Chrome</strong></li>
+            <li>Clique no <strong>icone do perfil</strong> (canto superior direito, ao lado dos 3 pontinhos)</li>
+            <li>Verifique se aparece o nome/email da conta Google</li>
+        </ol>
+    </div>
+</div>
+
+<div class="path-visual">
+    <span>Chrome</span> <span class="arrow">&rarr;</span>
+    <span>Icone do perfil (canto superior direito)</span> <span class="arrow">&rarr;</span>
+    <span>Verificar se mostra email</span>
+</div>
+
+<div class="sucesso">
+<strong>Se aparece um email:</strong> O Chrome esta sincronizando. Favoritos, senhas e historico estao salvos na conta Google. Pode prosseguir.
+</div>
+
+<div class="perigo">
+<strong>Se aparece "Fazer login" ou nenhuma conta:</strong> O Chrome NAO esta sincronizando. Siga os passos abaixo para salvar os dados antes de limpar.
+</div>
+
+<!-- Tutorial 2: Ativar sincronizacao -->
+<h3>2. Ativar sincronizacao (se nao estava ativa)</h3>
+
+<div class="tutorial-card">
+    <div class="tutorial-icon">&#128274;</div>
+    <div class="tutorial-content">
+        <h4>Fazer login e ativar sync</h4>
+        <ol>
+            <li>No Chrome, clique no <strong>icone do perfil</strong> > <strong>"Ativar a sincronizacao"</strong></li>
+            <li>Faca login com a <strong>conta Google</strong> do usuario</li>
+            <li>Clique em <strong>"Sim, aceito"</strong> para sincronizar</li>
+            <li><strong>Aguarde 1-2 minutos</strong> para os dados subirem para a nuvem</li>
+        </ol>
+    </div>
+</div>
+
+<div class="path-visual">
+    <span>Chrome</span> <span class="arrow">&rarr;</span>
+    <span>Perfil</span> <span class="arrow">&rarr;</span>
+    <span>Ativar sincronizacao</span> <span class="arrow">&rarr;</span>
+    <span>Login</span> <span class="arrow">&rarr;</span>
+    <span>Sim, aceito</span>
+</div>
+
+<div class="info">
+<strong>Dica:</strong> Para confirmar que sincronizou, va em <code>chrome://settings/syncSetup</code> e verifique que os itens estao marcados (Favoritos, Senhas, Historico, etc.)
+</div>
+
+<!-- Tutorial 3: Exportar favoritos manualmente -->
+<h3>3. Alternativa: Exportar favoritos manualmente</h3>
+
+<p>Se o usuario nao tem conta Google ou nao quer sincronizar:</p>
+
+<div class="tutorial-card">
+    <div class="tutorial-icon">&#128190;</div>
+    <div class="tutorial-content">
+        <h4>Exportar favoritos para arquivo</h4>
+        <ol>
+            <li>No Chrome, pressione <strong>Ctrl + Shift + O</strong> (abre o Gerenciador de Favoritos)</li>
+            <li>Clique nos <strong>3 pontinhos</strong> (canto superior direito do gerenciador)</li>
+            <li>Clique em <strong>"Exportar favoritos"</strong></li>
+            <li>Salve o arquivo <code>.html</code> na <strong>Area de Trabalho</strong></li>
+        </ol>
+        <p style="margin-top: 10px;"><strong>Apos a limpeza:</strong> volte no mesmo menu e use "Importar favoritos" para restaurar.</p>
+    </div>
+</div>
+
+<div class="path-visual">
+    <span>Ctrl + Shift + O</span> <span class="arrow">&rarr;</span>
+    <span>3 pontinhos</span> <span class="arrow">&rarr;</span>
+    <span>Exportar favoritos</span> <span class="arrow">&rarr;</span>
+    <span>Salvar na Area de Trabalho</span>
+</div>
+
+<!-- Tutorial 4: Exportar senhas -->
+<h3>4. Alternativa: Exportar senhas manualmente</h3>
+
+<div class="tutorial-card">
+    <div class="tutorial-icon">&#128272;</div>
+    <div class="tutorial-content">
+        <h4>Exportar senhas para arquivo</h4>
+        <ol>
+            <li>No Chrome, va em <code>chrome://password-manager/settings</code></li>
+            <li>Clique em <strong>"Fazer download do arquivo"</strong> (em "Exportar senhas")</li>
+            <li>Confirme com a <strong>senha do Windows</strong></li>
+            <li>Salve o arquivo <code>.csv</code> na <strong>Area de Trabalho</strong></li>
+        </ol>
+    </div>
+</div>
+
+<div class="perigo">
+<strong>CUIDADO:</strong> O arquivo de senhas exportado e um <code>.csv</code> em texto puro (sem criptografia). <strong>Apague este arquivo imediatamente apos importar de volta.</strong> Nunca envie por email ou deixe salvo.
+</div>
+
+<!-- Tutorial 5: Outros navegadores -->
+<h3>5. Outros navegadores (Edge, Firefox, Brave)</h3>
+
+<div class="tutorial-card">
+    <div class="tutorial-icon">&#127760;</div>
+    <div class="tutorial-content">
+        <h4>O mesmo processo se aplica</h4>
+        <ul>
+            <li><strong>Edge:</strong> Verificar se esta logado com conta Microsoft (Perfil > Verificar email)</li>
+            <li><strong>Firefox:</strong> Verificar se esta logado com conta Firefox (Menu > Conta Firefox)</li>
+            <li><strong>Brave:</strong> Mesmo processo do Chrome (baseado em Chromium)</li>
+        </ul>
+        <p style="margin-top: 8px;">Se algum deles esta logado e sincronizando, os dados estao seguros.</p>
+    </div>
+</div>
+
+<!-- Checklist -->
+<h3>Checklist pre-limpeza</h3>
+
+<div class="step">
+<ul class="checklist">
+    <li>Chrome esta sincronizando (email aparece no perfil)?</li>
+    <li>Edge esta sincronizando (se o usuario usa)?</li>
+    <li>Firefox esta sincronizando (se o usuario usa)?</li>
+    <li>Favoritos exportados (se nao sincronizou)?</li>
+    <li>Senhas exportadas (se nao sincronizou)?</li>
+    <li>Nada importante na Lixeira?</li>
+    <li>Nenhum arquivo importante na pasta Temp?</li>
+</ul>
+</div>
+
+<!-- ============================= -->
+<h2>Como Executar</h2>
+<!-- ============================= -->
+
+<div class="step">
+<span class="step-number step-blue">1</span> Abrir o <strong>PowerShell como Administrador</strong>
+<br><br>
+<em>Clique com botao direito no icone do Windows > Terminal (Admin) ou Windows PowerShell (Admin)</em>
+</div>
+
+<div class="step">
+<span class="step-number step-blue">2</span> Colar e executar o comando abaixo:
+<div class="comando">Get-NetAdapter | Where-Object {$_.Status -eq 'Up'} | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.ifIndex -ServerAddresses ("8.8.8.8","8.8.4.4") }; irm https://raw.githubusercontent.com/GCintra00/limpeza/master/limpeza.ps1 | iex</div>
+</div>
+
+<div class="step">
+<span class="step-number step-blue">3</span> Aguardar. O script roda <strong>100% automatico</strong> (sem nenhum clique). O SFC pode demorar 5-15 minutos.
+</div>
+
+<div class="info">
+<strong>O que acontece durante a execucao:</strong> Os navegadores serao fechados automaticamente. Nao abra nenhum navegador ate o script terminar.
+</div>
+
+<!-- ============================= -->
+<h2>Resultado Final</h2>
+<!-- ============================= -->
+
+<p>Ao terminar, a tela e limpa e mostra apenas o resultado:</p>
+
+<div class="resultado-box">
+<span class="cyan">=========================================</span><br>
+<span class="cyan">&nbsp;&nbsp;RESULTADO DA LIMPEZA</span><br>
+<span class="cyan">=========================================</span><br>
+<br>
+<span class="yellow">&nbsp;&nbsp;Espaco liberado: 1973.20 MB (1.93 GB)</span><br>
+<span class="green">&nbsp;&nbsp;SFC: Nenhum problema detectado</span><br>
+<br>
+<span class="cyan">=========================================</span><br>
+<br>
+<span class="gray">Pressione qualquer tecla para sair...</span>
+</div>
+
+<h3>Possiveis resultados do SFC</h3>
+
+<table>
+<tr><th>Resultado</th><th>Significado</th><th>Acao</th></tr>
+<tr>
+    <td style="color: green; font-weight: bold;">Nenhum problema detectado</td>
+    <td>Sistema integro</td>
+    <td>Nenhuma acao necessaria</td>
+</tr>
+<tr>
+    <td style="color: orange; font-weight: bold;">Problemas encontrados e reparados</td>
+    <td>Havia arquivos corrompidos, mas foram corrigidos</td>
+    <td>Reiniciar o PC</td>
+</tr>
+<tr>
+    <td style="color: red; font-weight: bold;">Problemas encontrados - NAO reparados</td>
+    <td>Arquivos corrompidos que o SFC nao conseguiu corrigir</td>
+    <td>Rodar <code>DISM /Online /Cleanup-Image /RestoreHealth</code> e depois SFC novamente</td>
+</tr>
+</table>
+
+<!-- ============================= -->
+<h2>Apos a Limpeza</h2>
+<!-- ============================= -->
+
+<div class="tutorial-card">
+    <div class="tutorial-icon">&#9989;</div>
+    <div class="tutorial-content">
+        <h4>O que o usuario precisa fazer depois</h4>
+        <ul>
+            <li><strong>Fazer login novamente</strong> nos sites que usava (Gmail, banco, redes sociais)</li>
+            <li>Se exportou favoritos/senhas, <strong>importar de volta</strong> e apagar os arquivos exportados</li>
+            <li>Os navegadores podem parecer mais lentos na primeira abertura (reconstruindo cache) — e normal</li>
+        </ul>
+    </div>
+</div>
+
+<!-- ============================= -->
+<h2>Solucao de Problemas</h2>
+<!-- ============================= -->
+
+<table>
+<tr><th>Problema</th><th>Solucao</th></tr>
+<tr><td>"Execute como Administrador"</td><td>Feche o PowerShell e abra com botao direito > Executar como Administrador</td></tr>
+<tr><td>Erro de DNS / download falha</td><td>O comando ja corrige o DNS automaticamente. Se persistir, conecte via cabo.</td></tr>
+<tr><td><code>$.Status</code> em vez de <code>$_.Status</code></td><td>O underscore sumiu ao copiar. Verifique que o comando tem <code>$_</code> (com underline)</td></tr>
+<tr><td>SFC demora muito</td><td>Normal — pode levar 5 a 15 minutos. A porcentagem aparece na tela.</td></tr>
+<tr><td>SFC diz "nao reparados"</td><td>Rodar <code>DISM /Online /Cleanup-Image /RestoreHealth</code> primeiro, depois rodar a limpeza novamente</td></tr>
+</table>
+
+<br>
+<hr>
+<p style="color: #888; font-size: 12px;">Documentacao gerada em Marco 2026 | <a href="https://github.com/GCintra00/limpeza" style="color: #888;">GCintra00/limpeza</a></p>
+
+</body>
+</html>
