@@ -38,7 +38,7 @@ Write-Host ""
 # [1] FECHAR NAVEGADORES
 # ============================================
 
-Write-Host "[1/7] Fechando navegadores..." -ForegroundColor Cyan
+Write-Host "[1/8] Fechando navegadores..." -ForegroundColor Cyan
 
 $navegadores = @("iexplore", "chrome", "firefox", "msedge", "brave", "vivaldi", "opera")
 foreach ($nav in $navegadores) {
@@ -50,7 +50,7 @@ Write-Host "  Navegadores fechados" -ForegroundColor Green
 # [2] ESVAZIAR LIXEIRA
 # ============================================
 
-Write-Host "[2/7] Esvaziando lixeira..." -ForegroundColor Cyan
+Write-Host "[2/8] Esvaziando lixeira..." -ForegroundColor Cyan
 
 try {
     Clear-RecycleBin -Confirm:$false -ErrorAction SilentlyContinue
@@ -63,7 +63,7 @@ try {
 # [3] LIMPAR PASTAS TEMP
 # ============================================
 
-Write-Host "[3/7] Limpando pastas temporarias..." -ForegroundColor Cyan
+Write-Host "[3/8] Limpando pastas temporarias..." -ForegroundColor Cyan
 
 # Temp de todos os usuarios
 $usuarios = Get-ChildItem "C:\Users" -Directory -ErrorAction SilentlyContinue
@@ -83,7 +83,7 @@ Write-Host "  Temp: Windows" -ForegroundColor Green
 # [4] LIMPAR LOGS DO WINDOWS
 # ============================================
 
-Write-Host "[4/7] Limpando logs..." -ForegroundColor Cyan
+Write-Host "[4/8] Limpando logs..." -ForegroundColor Cyan
 
 $logPaths = @(
     "C:\Windows\Logs\CBS\*.log",
@@ -110,7 +110,7 @@ Write-Host "  Logs limpos" -ForegroundColor Green
 # [5] LIMPAR CACHE DO WINDOWS E IE
 # ============================================
 
-Write-Host "[5/7] Limpando cache do Windows..." -ForegroundColor Cyan
+Write-Host "[5/8] Limpando cache do Windows..." -ForegroundColor Cyan
 
 foreach ($user in $usuarios) {
     $base = $user.FullName
@@ -145,7 +145,7 @@ Write-Host "  Cache do Windows limpo" -ForegroundColor Green
 # [6] LIMPAR CACHE DOS NAVEGADORES
 # ============================================
 
-Write-Host "[6/7] Limpando cache dos navegadores..." -ForegroundColor Cyan
+Write-Host "[6/8] Limpando cache dos navegadores..." -ForegroundColor Cyan
 
 # Funcao para limpar cache de navegador Chromium
 function Clear-ChromiumCache {
@@ -201,7 +201,7 @@ foreach ($user in $usuarios) {
 # [7] LIMPAR ADOBE MEDIA CACHE
 # ============================================
 
-Write-Host "[7/7] Limpando Adobe Media Cache..." -ForegroundColor Cyan
+Write-Host "[7/8] Limpando Adobe Media Cache..." -ForegroundColor Cyan
 
 foreach ($user in $usuarios) {
     $adobePath = "$($user.FullName)\AppData\Roaming\Adobe\Common\Media Cache Files"
@@ -212,6 +212,146 @@ foreach ($user in $usuarios) {
 }
 
 Write-Host "  Adobe cache limpo" -ForegroundColor Green
+
+# ============================================
+# [8] REMOVER AUTO-INICIO DE PROGRAMAS
+# ============================================
+
+Write-Host "[8/8] Removendo programas do inicio automatico..." -ForegroundColor Cyan
+
+# Itens que DEVEM permanecer no auto-inicio
+$manter = @("SecurityHealth", "RtkAudUService")
+
+# Limpar HKCU Run (remover TUDO exceto os mantidos e AnyDesk)
+$regRun = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+if (Test-Path $regRun) {
+    $entries = Get-ItemProperty $regRun -ErrorAction SilentlyContinue
+    foreach ($prop in $entries.PSObject.Properties) {
+        if ($prop.Name -match "^PS" -or $prop.Name -eq "(default)") { continue }
+        $keep = $false
+        foreach ($m in $manter) { if ($prop.Name -like "*$m*") { $keep = $true } }
+        if ($prop.Name -like "*AnyDesk*") { $keep = $true }
+        if (-not $keep) {
+            Remove-ItemProperty -Path $regRun -Name $prop.Name -ErrorAction SilentlyContinue
+            Write-Host "  Removido HKCU: $($prop.Name)" -ForegroundColor Green
+        }
+    }
+}
+
+# Limpar HKLM Run (remover TUDO exceto mantidos e AnyDesk)
+$regRunLM = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Run"
+if (Test-Path $regRunLM) {
+    $entries = Get-ItemProperty $regRunLM -ErrorAction SilentlyContinue
+    foreach ($prop in $entries.PSObject.Properties) {
+        if ($prop.Name -match "^PS" -or $prop.Name -eq "(default)") { continue }
+        $keep = $false
+        foreach ($m in $manter) { if ($prop.Name -like "*$m*") { $keep = $true } }
+        if ($prop.Name -like "*AnyDesk*") { $keep = $true }
+        if (-not $keep) {
+            Remove-ItemProperty -Path $regRunLM -Name $prop.Name -ErrorAction SilentlyContinue
+            Write-Host "  Removido HKLM: $($prop.Name)" -ForegroundColor Green
+        }
+    }
+}
+
+# Corrigir AnyDesk para executar em segundo plano (--control) se existir
+$anydeskPaths = @(
+    "$env:ProgramFiles\AnyDesk\AnyDesk.exe",
+    "${env:ProgramFiles(x86)}\AnyDesk\AnyDesk.exe"
+)
+foreach ($adPath in $anydeskPaths) {
+    if (Test-Path $adPath) {
+        Set-ItemProperty -Path $regRunLM -Name "AnyDesk" -Value "`"$adPath`" --control" -ErrorAction SilentlyContinue
+        Write-Host "  AnyDesk configurado em segundo plano (--control)" -ForegroundColor Green
+        break
+    }
+}
+
+# Limpar pasta Startup do usuario
+$startupFolder = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
+if (Test-Path $startupFolder) {
+    Get-ChildItem $startupFolder -ErrorAction SilentlyContinue | ForEach-Object {
+        Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
+        Write-Host "  Removido Startup: $($_.Name)" -ForegroundColor Green
+    }
+}
+
+# Limpar pasta Common Startup
+$commonStartup = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup"
+if (Test-Path $commonStartup) {
+    Get-ChildItem $commonStartup -ErrorAction SilentlyContinue | ForEach-Object {
+        Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
+        Write-Host "  Removido Common Startup: $($_.Name)" -ForegroundColor Green
+    }
+}
+
+# Desativar via StartupApproved (Gerenciador de Tarefas)
+$permitidos = @("SecurityHealth", "RtkAudUService", "AnyDesk")
+$disabledBytes = [byte[]](0x03,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00)
+
+$regApproved = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"
+if (Test-Path $regApproved) {
+    (Get-Item $regApproved).GetValueNames() | ForEach-Object {
+        if ($_ -eq "(default)") { return }
+        $permitido = $false
+        foreach ($p in $permitidos) { if ($_ -like "*$p*") { $permitido = $true } }
+        if (-not $permitido) {
+            Set-ItemProperty -Path $regApproved -Name $_ -Value $disabledBytes -Type Binary -ErrorAction SilentlyContinue
+            Write-Host "  Desativado startup: $_" -ForegroundColor Green
+        }
+    }
+}
+
+$regApprovedLM = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"
+if (Test-Path $regApprovedLM) {
+    (Get-Item $regApprovedLM).GetValueNames() | ForEach-Object {
+        if ($_ -eq "(default)") { return }
+        $permitido = $false
+        foreach ($p in $permitidos) { if ($_ -like "*$p*") { $permitido = $true } }
+        if (-not $permitido) {
+            Set-ItemProperty -Path $regApprovedLM -Name $_ -Value $disabledBytes -Type Binary -ErrorAction SilentlyContinue
+            Write-Host "  Desativado startup HKLM: $_" -ForegroundColor Green
+        }
+    }
+}
+
+$regApprovedFolder = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder"
+if (Test-Path $regApprovedFolder) {
+    (Get-Item $regApprovedFolder).GetValueNames() | ForEach-Object {
+        if ($_ -eq "(default)") { return }
+        $permitido = $false
+        foreach ($p in $permitidos) { if ($_ -like "*$p*") { $permitido = $true } }
+        if (-not $permitido) {
+            Set-ItemProperty -Path $regApprovedFolder -Name $_ -Value $disabledBytes -Type Binary -ErrorAction SilentlyContinue
+            Write-Host "  Desativado startup folder: $_" -ForegroundColor Green
+        }
+    }
+}
+
+# Remover programas que se readicionam
+Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "OneDrive" -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "OneDriveSetup" -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "Discord" -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "com.squirrel.slack.slack" -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "Steam" -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "EpicGamesLauncher" -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "Spotify" -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "LGHUB" -ErrorAction SilentlyContinue
+
+# Desativar tarefas agendadas de logon (exceto sistema)
+$tarefasManter = @("MicrosoftEdgeUpdateTask", "SecurityHealth", "Windows", "Microsoft\Windows")
+Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object {
+    $_.Triggers | Where-Object { $_ -is [Microsoft.Management.Infrastructure.CimInstance] -and $_.CimClass.CimClassName -eq "MSFT_TaskLogonTrigger" }
+} | ForEach-Object {
+    $skip = $false
+    foreach ($m in $tarefasManter) { if ($_.TaskPath -like "*$m*") { $skip = $true } }
+    if (-not $skip) {
+        Disable-ScheduledTask -TaskName $_.TaskName -TaskPath $_.TaskPath -ErrorAction SilentlyContinue
+        Write-Host "  Tarefa desativada: $($_.TaskName)" -ForegroundColor Green
+    }
+}
+
+Write-Host "  Auto-inicio limpo (Defender + AnyDesk + audio mantidos)" -ForegroundColor Green
 
 # ============================================
 # ESPACO LIBERADO

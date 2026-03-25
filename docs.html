@@ -75,7 +75,7 @@ code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-family: '
 <h2>O Que a Ferramenta Faz</h2>
 <!-- ============================= -->
 
-<p>O script executa uma limpeza completa do sistema em <strong>7 etapas automaticas</strong>, seguida de uma verificacao de integridade:</p>
+<p>O script executa uma limpeza completa do sistema em <strong>8 etapas automaticas</strong>, seguida de uma verificacao de integridade:</p>
 
 <table>
 <tr><th>Etapa</th><th>Acao</th><th>O que apaga</th></tr>
@@ -86,8 +86,36 @@ code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-family: '
 <tr><td>5</td><td>Limpa cache Windows</td><td>Thumbnails, WebCache, INetCache, Terminal Server</td></tr>
 <tr><td>6</td><td>Limpa navegadores</td><td>Cache, cookies, Service Workers de TODOS os navegadores</td></tr>
 <tr><td>7</td><td>Limpa Adobe</td><td>Adobe Media Cache</td></tr>
+<tr><td>8</td><td>Limpa auto-inicio</td><td>Remove TODOS os programas do inicio automatico (mantem Defender, AnyDesk e audio)</td></tr>
 <tr><td>Final</td><td>SFC /scannow</td><td>Verifica e repara arquivos do sistema</td></tr>
 </table>
+
+<h3>Auto-inicio: o que mantem vs o que remove</h3>
+
+<table>
+<tr><th>Mantido</th><th>Removido (exemplos)</th></tr>
+<tr>
+    <td>
+        <span class="tag tag-mantem">SecurityHealth (Defender)</span>
+        <span class="tag tag-mantem">AnyDesk (segundo plano)</span>
+        <span class="tag tag-mantem">RtkAudUService (audio)</span>
+    </td>
+    <td>
+        <span class="tag tag-apaga">Discord</span>
+        <span class="tag tag-apaga">Steam</span>
+        <span class="tag tag-apaga">Spotify</span>
+        <span class="tag tag-apaga">Slack</span>
+        <span class="tag tag-apaga">Epic Games</span>
+        <span class="tag tag-apaga">OneDrive</span>
+        <span class="tag tag-apaga">Logitech G Hub</span>
+        <span class="tag tag-apaga">E qualquer outro</span>
+    </td>
+</tr>
+</table>
+
+<div class="info">
+<strong>Nota:</strong> Os programas nao sao desinstalados — apenas deixam de abrir automaticamente ao ligar o PC. O usuario pode abrir qualquer um deles manualmente quando quiser.
+</div>
 
 <h3>O que e apagado nos navegadores</h3>
 
