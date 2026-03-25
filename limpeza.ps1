@@ -14,6 +14,9 @@ if (-not $isAdmin) {
     exit
 }
 
+# Contador de uso
+Invoke-RestMethod -Uri "https://script.google.com/a/macros/ignetworks.com/s/AKfycbwt3WtOgyWIj-EBXPSbhji7uMKhUt2A3yOZT2igyvHKYioOtWvBsrCb_CP2-4Ah7qc/exec?script=limpeza" -ErrorAction SilentlyContinue | Out-Null
+
 Write-Host ""
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host "  LIMPEZA DO SISTEMA" -ForegroundColor Cyan
