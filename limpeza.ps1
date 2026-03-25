@@ -221,21 +221,12 @@ $espacoDepois = (Get-PSDrive -Name C).Free
 $liberadoMB = [math]::Round(($espacoDepois - $espacoAntes) / 1MB, 2)
 $liberadoGB = [math]::Round(($espacoDepois - $espacoAntes) / 1GB, 2)
 
-Write-Host ""
-Write-Host "=========================================" -ForegroundColor Green
-Write-Host "  LIMPEZA CONCLUIDA" -ForegroundColor Green
-Write-Host "=========================================" -ForegroundColor Green
-Write-Host ""
-Write-Host "  Espaco liberado: $liberadoMB MB ($liberadoGB GB)" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "=========================================" -ForegroundColor Green
-
 # ============================================
 # SFC /SCANNOW
 # ============================================
 
 Write-Host ""
-Write-Host "Executando verificacao de integridade do sistema (sfc /scannow)..." -ForegroundColor Cyan
+Write-Host "Verificando integridade do sistema (sfc /scannow)..." -ForegroundColor Cyan
 Write-Host "Isso pode demorar alguns minutos..." -ForegroundColor Gray
 Write-Host ""
 
@@ -249,28 +240,35 @@ sfc /scannow 2>&1 | ForEach-Object {
     Write-Host $line
 }
 
-# Detectar resultado do SFC (ingles, espanhol, portugues + caracteres corrompidos)
+# Detectar resultado do SFC
 if ($sfcOutput -match "did not find any integrity|no encontr.*ninguna infracci|nao encontrou nenhum.*violac|no integrity violations") {
-    Write-Host "=========================================" -ForegroundColor Green
-    Write-Host "  SFC: Nenhum problema encontrado" -ForegroundColor Green
-    Write-Host "=========================================" -ForegroundColor Green
+    $sfcResultado = "Nenhum problema detectado"
+    $sfcCor = "Green"
 } elseif ($sfcOutput -match "successfully repaired|repar.*correctamente|reparado com sucesso|reparados com exito|da.*ados y los repar") {
-    Write-Host "=========================================" -ForegroundColor Yellow
-    Write-Host "  SFC: Problemas encontrados e REPARADOS" -ForegroundColor Yellow
-    Write-Host "=========================================" -ForegroundColor Yellow
+    $sfcResultado = "Problemas encontrados e reparados"
+    $sfcCor = "Yellow"
 } elseif ($sfcOutput -match "could not perform|unable to fix|no pudo reparar|nao pode reparar|no pudo corregir") {
-    Write-Host "=========================================" -ForegroundColor Red
-    Write-Host "  SFC: Problemas encontrados mas NAO reparados" -ForegroundColor Red
-    Write-Host "  Recomendado: DISM /Online /Cleanup-Image /RestoreHealth" -ForegroundColor Red
-    Write-Host "=========================================" -ForegroundColor Red
+    $sfcResultado = "Problemas encontrados - NAO reparados (rodar DISM)"
+    $sfcCor = "Red"
 } else {
-    Write-Host "=========================================" -ForegroundColor Gray
-    Write-Host "  SFC: Verifique o resultado acima" -ForegroundColor Gray
-    Write-Host "=========================================" -ForegroundColor Gray
+    $sfcResultado = "Verifique o resultado acima"
+    $sfcCor = "Gray"
 }
 
+# ============================================
+# TELA FINAL
+# ============================================
+
+Clear-Host
 Write-Host ""
-Write-Host "Espaco liberado: $liberadoMB MB ($liberadoGB GB)" -ForegroundColor Yellow
+Write-Host "=========================================" -ForegroundColor Cyan
+Write-Host "  RESULTADO DA LIMPEZA" -ForegroundColor Cyan
+Write-Host "=========================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  Espaco liberado: $liberadoMB MB ($liberadoGB GB)" -ForegroundColor Yellow
+Write-Host "  SFC: $sfcResultado" -ForegroundColor $sfcCor
+Write-Host ""
+Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Pressione qualquer tecla para sair..." -ForegroundColor Gray
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
