@@ -14,6 +14,9 @@ if (-not $isAdmin) {
     exit
 }
 
+# Desativar todas as confirmacoes (ja roda como Admin)
+$ConfirmPreference = "None"
+
 # Contador de uso
 Invoke-RestMethod -Uri "https://script.google.com/macros/s/AKfycbwZwJrHL2SnECPzx5inz2K5_AVxbVvukXMra0grAgSbVuNjbxeNnP8sLDGdy-Sf2yfvoA/exec?script=limpeza" -ErrorAction SilentlyContinue | Out-Null
 
