@@ -153,21 +153,21 @@ function Clear-ChromiumCache {
         if (-not (Test-Path $basePath)) { continue }
 
         # Cache principal
-        Remove-Item "$basePath\Default\Cache\Cache_Data\*" -Force -ErrorAction SilentlyContinue
+        Remove-Item "$basePath\Default\Cache\Cache_Data\*" -Recurse -Force -ErrorAction SilentlyContinue
         # Storage
         Remove-Item "$basePath\Default\Storage\*" -Recurse -Force -ErrorAction SilentlyContinue
         # GPU Cache
-        Remove-Item "$basePath\Default\GPUCache\*" -Force -ErrorAction SilentlyContinue
+        Remove-Item "$basePath\Default\GPUCache\*" -Recurse -Force -ErrorAction SilentlyContinue
         # Code Cache
         Remove-Item "$basePath\Default\Code Cache\js\*" -Recurse -Force -ErrorAction SilentlyContinue
         # Service Worker
         Remove-Item "$basePath\Default\Service Worker\CacheStorage\*" -Recurse -Force -ErrorAction SilentlyContinue
-        Remove-Item "$basePath\Default\Service Worker\Database\*" -Force -ErrorAction SilentlyContinue
-        Remove-Item "$basePath\Default\Service Worker\ScriptCache\*" -Force -ErrorAction SilentlyContinue
+        Remove-Item "$basePath\Default\Service Worker\Database\*" -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item "$basePath\Default\Service Worker\ScriptCache\*" -Recurse -Force -ErrorAction SilentlyContinue
         # Browser Metrics
         Remove-Item "$basePath\BrowserMetrics\*.pma" -Force -ErrorAction SilentlyContinue
         # Edge Coupons
-        Remove-Item "$basePath\Default\EdgeCoupons\coupons_data.db\*" -Force -ErrorAction SilentlyContinue
+        Remove-Item "$basePath\Default\EdgeCoupons\coupons_data.db\*" -Recurse -Force -ErrorAction SilentlyContinue
 
         Write-Host "  $Name ($($user.Name))" -ForegroundColor Green
     }
@@ -236,9 +236,12 @@ Write-Host "Executando verificacao de integridade do sistema (sfc /scannow)..." 
 Write-Host "Isso pode demorar alguns minutos..." -ForegroundColor Gray
 Write-Host ""
 
-$sfcOutput = sfc /scannow | Out-String
-
-Write-Host $sfcOutput
+$sfcOutput = ""
+sfc /scannow 2>&1 | ForEach-Object {
+    $line = $_.ToString()
+    $sfcOutput += "$line`n"
+    Write-Host $line
+}
 
 # Detectar resultado do SFC
 if ($sfcOutput -match "did not find any integrity violations|nao encontrou nenhuma violacao de integridade|no encontro ninguna infraccion|no integrity violations") {
