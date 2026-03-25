@@ -239,6 +239,9 @@ Write-Host "Executando verificacao de integridade do sistema (sfc /scannow)..." 
 Write-Host "Isso pode demorar alguns minutos..." -ForegroundColor Gray
 Write-Host ""
 
+# Forcar encoding correto para caracteres especiais (espanhol/portugues)
+[Console]::OutputEncoding = [System.Text.Encoding]::GetEncoding([System.Globalization.CultureInfo]::CurrentCulture.TextInfo.OEMCodePage)
+
 $sfcOutput = ""
 sfc /scannow 2>&1 | ForEach-Object {
     $line = $_.ToString()
@@ -246,16 +249,16 @@ sfc /scannow 2>&1 | ForEach-Object {
     Write-Host $line
 }
 
-# Detectar resultado do SFC
-if ($sfcOutput -match "did not find any integrity violations|nao encontrou nenhuma violacao de integridade|no encontro ninguna infraccion|no integrity violations") {
+# Detectar resultado do SFC (ingles, espanhol, portugues + caracteres corrompidos)
+if ($sfcOutput -match "did not find any integrity|no encontr.*ninguna infracci|nao encontrou nenhum.*violac|no integrity violations") {
     Write-Host "=========================================" -ForegroundColor Green
     Write-Host "  SFC: Nenhum problema encontrado" -ForegroundColor Green
     Write-Host "=========================================" -ForegroundColor Green
-} elseif ($sfcOutput -match "successfully repaired|reparados com exito|reparado com sucesso") {
+} elseif ($sfcOutput -match "successfully repaired|repar.*correctamente|reparado com sucesso|reparados com exito|da.*ados y los repar") {
     Write-Host "=========================================" -ForegroundColor Yellow
     Write-Host "  SFC: Problemas encontrados e REPARADOS" -ForegroundColor Yellow
     Write-Host "=========================================" -ForegroundColor Yellow
-} elseif ($sfcOutput -match "could not perform|unable to fix|nao pode reparar|no pudo reparar") {
+} elseif ($sfcOutput -match "could not perform|unable to fix|no pudo reparar|nao pode reparar|no pudo corregir") {
     Write-Host "=========================================" -ForegroundColor Red
     Write-Host "  SFC: Problemas encontrados mas NAO reparados" -ForegroundColor Red
     Write-Host "  Recomendado: DISM /Online /Cleanup-Image /RestoreHealth" -ForegroundColor Red
