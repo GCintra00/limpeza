@@ -167,6 +167,9 @@ function Clear-ChromiumCache {
         Remove-Item "$basePath\Default\Service Worker\CacheStorage\*" -Recurse -Force -ErrorAction SilentlyContinue
         Remove-Item "$basePath\Default\Service Worker\Database\*" -Recurse -Force -ErrorAction SilentlyContinue
         Remove-Item "$basePath\Default\Service Worker\ScriptCache\*" -Recurse -Force -ErrorAction SilentlyContinue
+        # Cookies
+        Remove-Item "$basePath\Default\Network\Cookies" -Force -ErrorAction SilentlyContinue
+        Remove-Item "$basePath\Default\Network\Cookies-journal" -Force -ErrorAction SilentlyContinue
         # Browser Metrics
         Remove-Item "$basePath\BrowserMetrics\*.pma" -Force -ErrorAction SilentlyContinue
         # Edge Coupons
