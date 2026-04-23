@@ -155,18 +155,26 @@ function Clear-ChromiumCache {
         $basePath = "$($user.FullName)\AppData\Local\$RelPath"
         if (-not (Test-Path $basePath)) { continue }
 
-        # Cache principal
-        Remove-Item "$basePath\Default\Cache\Cache_Data\*" -Recurse -Force -ErrorAction SilentlyContinue
-        # Storage
-        Remove-Item "$basePath\Default\Storage\*" -Recurse -Force -ErrorAction SilentlyContinue
+        # Cache principal - limpa TUDO dentro de Cache (Chromium novo nao usa mais Cache_Data)
+        Remove-Item "$basePath\Default\Cache\*" -Recurse -Force -ErrorAction SilentlyContinue
+        # Code Cache completo (js, wasm, fake_fs)
+        Remove-Item "$basePath\Default\Code Cache\*" -Recurse -Force -ErrorAction SilentlyContinue
+        # Media Cache (videos)
+        Remove-Item "$basePath\Default\Media Cache\*" -Recurse -Force -ErrorAction SilentlyContinue
         # GPU Cache
         Remove-Item "$basePath\Default\GPUCache\*" -Recurse -Force -ErrorAction SilentlyContinue
-        # Code Cache
-        Remove-Item "$basePath\Default\Code Cache\js\*" -Recurse -Force -ErrorAction SilentlyContinue
+        # Dawn Cache (GPU moderno)
+        Remove-Item "$basePath\Default\DawnCache\*" -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item "$basePath\Default\DawnGraphiteCache\*" -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item "$basePath\Default\DawnWebGPUCache\*" -Recurse -Force -ErrorAction SilentlyContinue
+        # Storage
+        Remove-Item "$basePath\Default\Storage\*" -Recurse -Force -ErrorAction SilentlyContinue
         # Service Worker
         Remove-Item "$basePath\Default\Service Worker\CacheStorage\*" -Recurse -Force -ErrorAction SilentlyContinue
         Remove-Item "$basePath\Default\Service Worker\Database\*" -Recurse -Force -ErrorAction SilentlyContinue
         Remove-Item "$basePath\Default\Service Worker\ScriptCache\*" -Recurse -Force -ErrorAction SilentlyContinue
+        # History Provider Cache
+        Remove-Item "$basePath\Default\History Provider Cache" -Force -ErrorAction SilentlyContinue
         # Cookies
         Remove-Item "$basePath\Default\Network\Cookies" -Force -ErrorAction SilentlyContinue
         Remove-Item "$basePath\Default\Network\Cookies-journal" -Force -ErrorAction SilentlyContinue
@@ -174,6 +182,8 @@ function Clear-ChromiumCache {
         Remove-Item "$basePath\BrowserMetrics\*.pma" -Force -ErrorAction SilentlyContinue
         # Edge Coupons
         Remove-Item "$basePath\Default\EdgeCoupons\coupons_data.db\*" -Recurse -Force -ErrorAction SilentlyContinue
+        # Residuais no root User Data
+        Remove-Item "$basePath\brow*.*" -Force -ErrorAction SilentlyContinue
 
         Write-Host "  $Name ($($user.Name))" -ForegroundColor Green
     }
