@@ -105,22 +105,48 @@ ipconfig /flushdns | Out-Null
 netsh winsock reset | Out-Null
 Write-Host '   (winsock reset completa no proximo reboot)'
 
+# ---- watchdog: roda etapa com limite de tempo ----
+# MataSeTravar=$true  -> etapa so-leitura: aborta no timeout e segue a vida
+# MataSeTravar=$false -> etapa que ESCREVE no sistema: NUNCA mata (perigoso);
+#                        avisa a cada 15 min e continua esperando
+function Run-Etapa {
+    param([string]$Desc, [string]$Exe, [string]$Args, [int]$TimeoutMin, [bool]$MataSeTravar)
+    Write-Host "   --- $Desc (limite ${TimeoutMin} min) ---" -ForegroundColor Cyan
+    $t0 = Get-Date
+    $p = Start-Process -FilePath $Exe -ArgumentList $Args -NoNewWindow -PassThru
+    $limite = $TimeoutMin
+    while (-not $p.HasExited) {
+        Start-Sleep -Seconds 15
+        $min = ((Get-Date) - $t0).TotalMinutes
+        if ($min -ge $limite) {
+            if ($MataSeTravar) {
+                Write-Host "   !! '$Desc' passou de $limite min - ABORTANDO etapa e seguindo" -ForegroundColor Red
+                Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue; break
+            } else {
+                Write-Host "   !! '$Desc' passou de $limite min - etapa de ESCRITA, nao vou matar. Aguardando mais 15 min... (Ctrl+C aborta tudo)" -ForegroundColor Yellow
+                $limite += 15
+            }
+        }
+    }
+    Write-Host ("   ('{0}' terminou em {1} min)" -f $Desc, [math]::Round(((Get-Date) - $t0).TotalMinutes, 1))
+}
+
 # ============ [6/9] DISM COMPLETO ============
 Write-Host "`n[6/9] BATERIA DISM (a parte demorada - '62% parado' e normal)" -ForegroundColor Cyan
-Write-Host '   --- CheckHealth ---';            dism /Online /Cleanup-Image /CheckHealth
-Write-Host '   --- ScanHealth ---';             dism /Online /Cleanup-Image /ScanHealth
-Write-Host '   --- RestoreHealth ---';          dism /Online /Cleanup-Image /RestoreHealth
-Write-Host '   --- AnalyzeComponentStore ---';  dism /Online /Cleanup-Image /AnalyzeComponentStore
-Write-Host '   --- StartComponentCleanup ---';  dism /Online /Cleanup-Image /StartComponentCleanup
+dism /Online /Cleanup-Image /CheckHealth
+Run-Etapa 'ScanHealth'            'dism' '/Online /Cleanup-Image /ScanHealth'            30 $true
+Run-Etapa 'RestoreHealth'         'dism' '/Online /Cleanup-Image /RestoreHealth'         60 $false
+Run-Etapa 'AnalyzeComponentStore' 'dism' '/Online /Cleanup-Image /AnalyzeComponentStore' 15 $true
+Run-Etapa 'StartComponentCleanup' 'dism' '/Online /Cleanup-Image /StartComponentCleanup' 60 $false
 
 # ============ [7/9] SFC ============
 Write-Host "`n[7/9] SFC /scannow (depois do DISM, na ordem certa)..." -ForegroundColor Cyan
-sfc /scannow
+Run-Etapa 'SFC /scannow' 'sfc' '/scannow' 60 $false
 
 # ============ [8/9] DISCO ============
 Write-Host "`n[8/9] Disco: chkdsk online + otimizacao (TRIM/defrag)..." -ForegroundColor Cyan
-chkdsk C: /scan
-defrag C: /O
+Run-Etapa 'chkdsk /scan' 'chkdsk' 'C: /scan' 30 $true
+Run-Etapa 'defrag /O'    'defrag' 'C: /O'    45 $true
 
 # ============ [9/9] RELATORIO ============
 $espacoDepois = (Get-PSDrive -Name C).Free
