@@ -120,17 +120,17 @@ Write-Host '   (winsock reset completa no proximo reboot)'
 # MataSeTravar=$false -> etapa que ESCREVE no sistema: NUNCA mata (perigoso);
 #                        avisa a cada 15 min e continua esperando
 function Run-Etapa {
-    param([string]$Desc, [string]$Exe, [string]$Args, [int]$TimeoutMin, [bool]$MataSeTravar)
+    param([string]$Desc, [string]$Exe, [string]$Argumentos, [int]$TimeoutMin, [bool]$MataSeTravar)
     $t0 = Get-Date
     if ($MODO_LOG) {
         # modo pericia: chamada direta -> transcript captura toda a saida; sem watchdog
         Write-Host "   --- $Desc (log completo, sem limite) ---" -ForegroundColor Cyan
-        & $Exe ($Args -split ' ')
+        & $Exe ($Argumentos -split ' ')
         Write-Host ("   ('{0}' terminou em {1} min)" -f $Desc, [math]::Round(((Get-Date) - $t0).TotalMinutes, 1))
         return
     }
     Write-Host "   --- $Desc (limite ${TimeoutMin} min) ---" -ForegroundColor Cyan
-    $p = Start-Process -FilePath $Exe -ArgumentList $Args -NoNewWindow -PassThru
+    $p = Start-Process -FilePath $Exe -ArgumentList $Argumentos -NoNewWindow -PassThru
     $limite = $TimeoutMin
     while (-not $p.HasExited) {
         Start-Sleep -Seconds 15
@@ -167,11 +167,13 @@ Run-Etapa 'defrag /O'    'defrag' 'C: /O'    45 $true
 
 # ============ [9/9] RELATORIO ============
 $espacoDepois = (Get-PSDrive -Name C).Free
-$liberado = [math]::Round(($espacoAntes - $espacoDepois) / 1MB)
+$liberadoMB = [math]::Round(($espacoAntes - $espacoDepois) / 1MB)
+$liberado = if ($liberadoMB -ge 0) { "$liberadoMB MB" }
+            else { "0 MB (disco ate cresceu $(-$liberadoMB) MB durante o reparo - normal: Windows Update rebaixando updates apos a limpeza do cache)" }
 Write-Host "`n"
 Write-Host '           UTI CONCLUIDA - PACIENTE RESPIRANDO' -ForegroundColor Green
 Write-Host '====================================================='
-Write-Host " Espaco liberado ............ $liberado MB"
+Write-Host " Espaco liberado ............ $liberado"
 Write-Host ' Apps + inicializacao ....... limpos (backup em Desktop\UTI-backup)'
 Write-Host ' DISM + SFC ................. rodados (resultados acima e no log)'
 Write-Host ' WU cache / DNS / Winsock ... resetados'
