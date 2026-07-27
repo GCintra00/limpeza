@@ -25,6 +25,16 @@ New-Item -ItemType Directory -Path $UTIDIR -Force | Out-Null
 Start-Transcript -Path (Join-Path $UTIDIR 'uti-log.txt') -Append | Out-Null
 Write-Host "`n===== UTI v6 - $(Get-Date) =====" -ForegroundColor Cyan
 
+# ---- escolha do modo das etapas longas (DISM/SFC/chkdsk/defrag) ----
+Write-Host ''
+Write-Host 'Como rodar as etapas longas?' -ForegroundColor Cyan
+Write-Host '  [1] WATCHDOG  - limite de tempo por etapa + barras ao vivo (padrao, atendimento)'
+Write-Host '  [2] LOG COMPLETO - grava TODA a saida do DISM/SFC no uti-log.txt (pericia do paciente; sem watchdog)'
+$modo = Read-Host 'Escolha [Enter = 1]'
+$MODO_LOG = ($modo -eq '2')
+if ($MODO_LOG) { Write-Host '>> Modo LOG COMPLETO: tudo vai pro uti-log.txt (sem limite de tempo).' -ForegroundColor Yellow }
+else { Write-Host '>> Modo WATCHDOG: etapas com limite de tempo; detalhe fino fica em C:\Windows\Logs (DISM/CBS).' -ForegroundColor Yellow }
+
 # ---- nao deixar o PC dormir no meio ----
 $sig = '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint f);'
 try { (Add-Type -MemberDefinition $sig -Name S -Namespace W -PassThru)::SetThreadExecutionState(0x80000003) | Out-Null } catch {}
@@ -111,8 +121,15 @@ Write-Host '   (winsock reset completa no proximo reboot)'
 #                        avisa a cada 15 min e continua esperando
 function Run-Etapa {
     param([string]$Desc, [string]$Exe, [string]$Args, [int]$TimeoutMin, [bool]$MataSeTravar)
-    Write-Host "   --- $Desc (limite ${TimeoutMin} min) ---" -ForegroundColor Cyan
     $t0 = Get-Date
+    if ($MODO_LOG) {
+        # modo pericia: chamada direta -> transcript captura toda a saida; sem watchdog
+        Write-Host "   --- $Desc (log completo, sem limite) ---" -ForegroundColor Cyan
+        & $Exe ($Args -split ' ')
+        Write-Host ("   ('{0}' terminou em {1} min)" -f $Desc, [math]::Round(((Get-Date) - $t0).TotalMinutes, 1))
+        return
+    }
+    Write-Host "   --- $Desc (limite ${TimeoutMin} min) ---" -ForegroundColor Cyan
     $p = Start-Process -FilePath $Exe -ArgumentList $Args -NoNewWindow -PassThru
     $limite = $TimeoutMin
     while (-not $p.HasExited) {
