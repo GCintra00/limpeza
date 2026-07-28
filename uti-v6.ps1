@@ -74,7 +74,8 @@ if ($temMcafee) {
                   Write-Host "     tarefa removida: $($_.TaskName)" } catch {} }
         Write-Host '   desinstalando (silencioso, ate 3 min por item)...'
         $regs = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
-                'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+                'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+                'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
         Get-ItemProperty $regs -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*McAfee*' } | ForEach-Object {
             $unins = $_.QuietUninstallString; if (-not $unins) { $unins = $_.UninstallString }
             if ($unins) {
@@ -93,7 +94,14 @@ if ($temMcafee) {
         @("$env:ProgramFiles\McAfee","${env:ProgramFiles(x86)}\McAfee","$env:ProgramData\McAfee","$env:LOCALAPPDATA\McAfee","$env:APPDATA\McAfee") |
             ForEach-Object { if (Test-Path $_) { Remove-Item $_ -Recurse -Force -ErrorAction SilentlyContinue } }
         sc.exe delete 'McAfee WebAdvisor' 2>$null | Out-Null
-        Write-Host '   McAfee exterminado (confirmacao final apos o reboot).' -ForegroundColor Green
+        $resto = Get-ItemProperty $regs -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*McAfee*' }
+        if ($resto) {
+            Write-Host '   !! Ainda ha produto McAfee registrado (uninstall interativo):' -ForegroundColor Yellow
+            $resto | ForEach-Object { Write-Host "      - $($_.DisplayName)" -ForegroundColor Yellow }
+            Write-Host '   -> desinstalar pelo Painel de Controle e/ou rodar o MCPR (ferramenta oficial McAfee).' -ForegroundColor Yellow
+        } else {
+            Write-Host '   McAfee exterminado (confirmacao final apos o reboot).' -ForegroundColor Green
+        }
     } else { Write-Host '   ok, McAfee mantido.' }
 }
 
