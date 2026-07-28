@@ -230,4 +230,11 @@ Write-Host ' Log completo + backups: Desktop\UTI-backup'
 Write-Host '   (reverter startup: duplo clique no .reg / mover o .lnk de volta)'
 Write-Host '====================================================='
 Stop-Transcript | Out-Null
-Read-Host 'Pressione ENTER para sair'
+$rb = Read-Host 'REINICIAR AGORA (recomendado - os reparos so valem apos o reboot)? [S/n]'
+if ($rb -notmatch '^[nN]') {
+    Write-Host 'Reiniciando em 20 segundos... (feche o que precisar; cancelar: shutdown /a)' -ForegroundColor Yellow
+    shutdown /r /t 20 /c "UTI do Windows: reinicio para aplicar os reparos (DISM/winsock/boot limpo)"
+} else {
+    Write-Host 'OK - mas REINICIE assim que puder: DISM/winsock/boot limpo so valem apos o reboot.' -ForegroundColor Yellow
+    Read-Host 'Pressione ENTER para sair'
+}
