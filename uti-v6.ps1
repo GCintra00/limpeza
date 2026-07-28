@@ -35,6 +35,30 @@ $MODO_LOG = ($modo -eq '2')
 if ($MODO_LOG) { Write-Host '>> Modo LOG COMPLETO: tudo vai pro uti-log.txt (sem limite de tempo).' -ForegroundColor Yellow }
 else { Write-Host '>> Modo WATCHDOG: etapas com limite de tempo; detalhe fino fica em C:\Windows\Logs (DISM/CBS).' -ForegroundColor Yellow }
 
+# ---- cabecalho info-pc no log (registro de atendimento) ----
+try {
+    $cs = Get-CimInstance Win32_ComputerSystem; $bios = Get-CimInstance Win32_BIOS
+    $os = Get-CimInstance Win32_OperatingSystem; $cpu = (Get-CimInstance Win32_Processor | Select-Object -First 1).Name
+    Write-Host ''
+    Write-Host ('PC: {0} | {1} {2} | Serial: {3}' -f $env:COMPUTERNAME, $cs.Manufacturer, $cs.Model, $bios.SerialNumber)
+    Write-Host ('CPU: {0} | RAM: {1} GB | {2} (build {3})' -f $cpu, [math]::Round($cs.TotalPhysicalMemory/1GB,1), $os.Caption, $os.BuildNumber)
+    $boot = $os.LastBootUpTime
+    Write-Host ('Ligado ha: {0:N1} dias (ultimo boot: {1})' -f ((Get-Date) - $boot).TotalDays, $boot)
+} catch {}
+
+# ---- reboot pendente? (diagnostico sujo se rodar assim) ----
+$pend = @()
+if (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending') { $pend += 'CBS' }
+if (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired') { $pend += 'WindowsUpdate' }
+if ((Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager' -Name PendingFileRenameOperations -ErrorAction SilentlyContinue)) { $pend += 'RenamePendente' }
+if ($pend) {
+    Write-Host ''
+    Write-Host ("AVISO: este PC tem REINICIO PENDENTE ($($pend -join ', ')) - reparos/updates anteriores ainda nao assentaram.") -ForegroundColor Yellow
+    Write-Host '  -> o ideal e REINICIAR antes da UTI, senao o diagnostico sai sujo.' -ForegroundColor Yellow
+    $cont = Read-Host 'Continuar mesmo assim? [s/N]'
+    if ($cont -notmatch '^[sSyY]') { Write-Host 'OK - reinicie e rode a UTI de novo.'; Stop-Transcript | Out-Null; return }
+}
+
 # ---- nao deixar o PC dormir no meio ----
 $sig = '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint f);'
 try { (Add-Type -MemberDefinition $sig -Name S -Namespace W -PassThru)::SetThreadExecutionState(0x80000003) | Out-Null } catch {}
@@ -137,13 +161,16 @@ Clear-RecycleBin -Confirm:$false -ErrorAction SilentlyContinue
 foreach ($u in Get-ChildItem C:\Users -Directory -ErrorAction SilentlyContinue) {
     $p = $u.FullName
     Remove-Item "$p\AppData\Local\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
-    @("$p\AppData\Local\Microsoft\Edge\User Data\Default\Cache\Cache_Data",
-      "$p\AppData\Local\Microsoft\Edge\User Data\Default\Code Cache\js",
-      "$p\AppData\Local\Google\Chrome\User Data\Default\Cache\Cache_Data",
-      "$p\AppData\Local\Google\Chrome\User Data\Default\Code Cache\js",
-      "$p\AppData\Local\BraveSoftware\Brave-Browser\User Data\Default\Cache\Cache_Data",
-      "$p\AppData\Local\Vivaldi\User Data\Default\Cache\Cache_Data",
-      "$p\AppData\Local\Microsoft\Windows\INetCache\IE",
+    # caches em TODOS os perfis dos navegadores Chromium (Default, Profile 1, 2...)
+    foreach ($udroot in @("$p\AppData\Local\Microsoft\Edge\User Data",
+                          "$p\AppData\Local\Google\Chrome\User Data",
+                          "$p\AppData\Local\BraveSoftware\Brave-Browser\User Data",
+                          "$p\AppData\Local\Vivaldi\User Data")) {
+        Get-ChildItem $udroot -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^(Default|Profile \d+)$' } | ForEach-Object {
+                Remove-Item "$($_.FullName)\Cache\Cache_Data\*" -Recurse -Force -ErrorAction SilentlyContinue
+                Remove-Item "$($_.FullName)\Code Cache\js\*" -Recurse -Force -ErrorAction SilentlyContinue } }
+    @("$p\AppData\Local\Microsoft\Windows\INetCache\IE",
       "$p\AppData\Roaming\Adobe\Common\Media Cache Files") | ForEach-Object {
         Remove-Item "$_\*" -Recurse -Force -ErrorAction SilentlyContinue }
     Get-ChildItem "$p\AppData\Local\Mozilla\Firefox\Profiles" -Directory -ErrorAction SilentlyContinue |
@@ -202,21 +229,78 @@ function Run-Etapa {
 }
 
 # ============ [6/9] DISM COMPLETO ============
-Write-Host "`n[6/9] BATERIA DISM (a parte demorada - '62% parado' e normal)" -ForegroundColor Cyan
+Write-Host "`n[6/9] BATERIA DISM - fase LONGA (15 a 60+ min no total; '62% parado' e normal, NAO e travamento)" -ForegroundColor Cyan
 dism /Online /Cleanup-Image /CheckHealth
 Run-Etapa 'ScanHealth'            'dism' '/Online /Cleanup-Image /ScanHealth'            30 $true
 Run-Etapa 'RestoreHealth'         'dism' '/Online /Cleanup-Image /RestoreHealth'         60 $false
 Run-Etapa 'AnalyzeComponentStore' 'dism' '/Online /Cleanup-Image /AnalyzeComponentStore' 15 $true
 Run-Etapa 'StartComponentCleanup' 'dism' '/Online /Cleanup-Image /StartComponentCleanup' 60 $false
 
+# ---- pericia pos-DISM: se continuar "reparavel", extrai o laudo do CBS.log ----
+$chk = (dism /Online /Cleanup-Image /CheckHealth | Out-String)
+if ($chk -match 'repairable|reparable|reparavel|repar') {
+    Write-Host ''
+    Write-Host '   PERICIA: repositorio segue "reparavel" apos RestoreHealth - extraindo laudo do CBS.log...' -ForegroundColor Yellow
+    try {
+        $cbs = Get-Content C:\Windows\Logs\CBS\CBS.log -ErrorAction Stop
+        $num = ($cbs | Select-String 'numCorruptions = (\d+)' | Select-Object -Last 1)
+        if ($num) { Write-Host ('   Corrupcoes detectadas: ' + $num.Matches[0].Groups[1].Value) -ForegroundColor Yellow }
+        $comp = @($cbs | Select-String 'CSI Payload Corrupt' | Select-Object -Last 8)
+        if ($comp) {
+            Write-Host '   Componentes corrompidos (ultimos 8):' -ForegroundColor Yellow
+            $comp | ForEach-Object { Write-Host ('     ' + ($_.Line -replace '^.*\(n\)\s*','').Trim()) }
+            if ($comp[-1].Line -match '_(10\.0\.\d+\.\d+)_') {
+                $verBase = $matches[1]; $verSo = (Get-CimInstance Win32_OperatingSystem).Version
+                if (-not $verBase.StartsWith($verSo)) {
+                    Write-Host ("   -> Payloads de baseline SUPERADA ($verBase; SO atual $verSo): o WU nao distribui mais esses arquivos = flag tende a ser CRONICA e COSMETICA (sistema vivo integro se o SFC abaixo vier limpo).") -ForegroundColor Yellow
+                }
+            }
+        }
+        Write-Host '   ESCADA DE TRATAMENTO (avaliar depois - NADA disso roda automatico):' -ForegroundColor Yellow
+        Write-Host '     1. (manual) DISM /Online /Cleanup-Image /StartComponentCleanup /ResetBase + reboot'
+        Write-Host '        ATENCAO: ResetBase impede desinstalar updates antigos - por isso NAO roda sozinho.'
+        Write-Host '     2. In-place upgrade (ISO da MESMA versao -> setup.exe -> manter arquivos/apps) = fix definitivo.'
+        Write-Host '     3. Conviver com a flag se a maquina esta funcional (SFC limpo = sistema vivo integro).'
+    } catch { Write-Host '   (nao consegui ler o CBS.log)' }
+}
+
 # ============ [7/9] SFC ============
-Write-Host "`n[7/9] SFC /scannow (depois do DISM, na ordem certa)..." -ForegroundColor Cyan
+Write-Host "`n[7/9] SFC /scannow - pode levar de 5 a 60+ min (depois do DISM, na ordem certa)..." -ForegroundColor Cyan
 Run-Etapa 'SFC /scannow' 'sfc' '/scannow' 60 $false
 
 # ============ [8/9] DISCO ============
 Write-Host "`n[8/9] Disco: chkdsk online + otimizacao (TRIM/defrag)..." -ForegroundColor Cyan
 Run-Etapa 'chkdsk /scan' 'chkdsk' 'C: /scan' 30 $true
 Run-Etapa 'defrag /O'    'defrag' 'C: /O'    45 $true
+
+# ============ [8.5/9] COLETA DE DIAGNOSTICO (so leitura - tudo pro log) ============
+Write-Host "`n[8.5/9] Coletando diagnosticos do sistema (rapido, so leitura)..." -ForegroundColor Cyan
+try {
+    $des = (Get-WinEvent -FilterHashtable @{LogName='System'; Id=41,6008; StartTime=(Get-Date).AddDays(-30)} -ErrorAction SilentlyContinue | Measure-Object).Count
+    $flag = if ($des -gt 3) { ' <- SUSPEITO (causa classica de corrupcao de store)' } else { '' }
+    Write-Host "   Desligamentos SUJOS nos ultimos 30 dias (Kernel-Power 41/6008): $des$flag"
+} catch { Write-Host '   Desligamentos sujos: (sem dados)' }
+try {
+    Write-Host '   Ultimos erros criticos do sistema (14 dias, max 15):'
+    Get-WinEvent -FilterHashtable @{LogName='System'; Level=1,2; StartTime=(Get-Date).AddDays(-14)} -MaxEvents 15 -ErrorAction Stop |
+        ForEach-Object { $m = ($_.Message -split "`n")[0]; if ($m.Length -gt 90) { $m = $m.Substring(0,90) }
+                         Write-Host ('     {0:MM/dd HH:mm} [{1}] {2}' -f $_.TimeCreated, $_.ProviderName, $m) }
+} catch { Write-Host '   Erros do sistema: (nenhum critico recente ou sem acesso)' }
+try {
+    $mp = Get-MpComputerStatus -ErrorAction Stop
+    $velho = if (((Get-Date) - $mp.AntivirusSignatureLastUpdated).TotalDays -gt 7) { ' <- DEFINICOES VELHAS' } else { '' }
+    Write-Host ('   Defender: ativo={0} | tempo-real={1} | definicoes de {2:MM/dd}{3}' -f $mp.AntivirusEnabled, $mp.RealTimeProtectionEnabled, $mp.AntivirusSignatureLastUpdated, $velho)
+} catch { Write-Host '   Defender: (nao consegui ler - CONFERIR manualmente, principalmente se antivirus foi removido)' }
+try {
+    Get-PhysicalDisk | ForEach-Object {
+        $r = $_ | Get-StorageReliabilityCounter -ErrorAction SilentlyContinue
+        Write-Host ('   Disco: {0} | Saude: {1} | Desgaste: {2}% | Temp: {3}C | ErrosLeitura: {4}' -f $_.FriendlyName, $_.HealthStatus, "$($r.Wear)", "$($r.Temperature)", "$($r.ReadErrorsTotal)") }
+} catch { Write-Host '   Discos: (sem contadores de confiabilidade)' }
+try {
+    Write-Host '   Ultimos 5 updates instalados:'
+    Get-HotFix -ErrorAction Stop | Sort-Object InstalledOn -Descending | Select-Object -First 5 |
+        ForEach-Object { Write-Host ('     {0} - {1:yyyy-MM-dd}' -f $_.HotFixID, $_.InstalledOn) }
+} catch { Write-Host '   Updates: (sem dados)' }
 
 # ============ [9/9] RELATORIO ============
 $espacoDepois = (Get-PSDrive -Name C).Free
