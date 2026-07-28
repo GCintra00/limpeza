@@ -53,6 +53,50 @@ Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $whitelist -notconta
   'wallpaper64','wallpaper32','CCleaner64') | ForEach-Object {
     Get-Process -Name $_ -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue }
 
+# ============ [1.5/9] EXTERMINADOR DE McAFEE (se detectado) ============
+$temMcafee = (Get-Service -DisplayName '*McAfee*' -ErrorAction SilentlyContinue) -or
+             (Test-Path "$env:ProgramFiles\McAfee") -or (Test-Path "${env:ProgramFiles(x86)}\McAfee") -or
+             (Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'mcafee|mcuicnt|mcshield' })
+if ($temMcafee) {
+    Write-Host "`n[1.5/9] McAfee residual DETECTADO neste PC." -ForegroundColor Yellow
+    $r = Read-Host 'Remover o McAfee de vez (servicos + tarefas + uninstall silencioso + pastas)? [S/n]'
+    if ($r -notmatch '^[nN]') {
+        Write-Host '   parando e desativando servicos McAfee...'
+        Get-Service -DisplayName '*McAfee*' -ErrorAction SilentlyContinue | ForEach-Object {
+            Stop-Service -Name $_.Name -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+            Set-Service -Name $_.Name -StartupType Disabled -ErrorAction SilentlyContinue }
+        Get-Process -ErrorAction SilentlyContinue | Where-Object {
+            $_.Name -match 'mcafee|mcshield|mcuicnt|ModuleCore|MMSSHOST|McPvTray|WebAdvisor|McInstaller|mfemms|mfevtps|mcods|mfefire|mfetp|protectedmodulehost'
+        } | Stop-Process -Force -ErrorAction SilentlyContinue
+        Write-Host '   removendo tarefas agendadas (as das notificacoes)...'
+        Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like '*McAfee*' -or $_.TaskPath -like '*McAfee*' } | ForEach-Object {
+            try { Unregister-ScheduledTask -TaskName $_.TaskName -TaskPath $_.TaskPath -Confirm:$false -ErrorAction Stop
+                  Write-Host "     tarefa removida: $($_.TaskName)" } catch {} }
+        Write-Host '   desinstalando (silencioso, ate 3 min por item)...'
+        $regs = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+                'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+        Get-ItemProperty $regs -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*McAfee*' } | ForEach-Object {
+            $unins = $_.QuietUninstallString; if (-not $unins) { $unins = $_.UninstallString }
+            if ($unins) {
+                try {
+                    if ($unins -match '^"([^"]+)"\s*(.*)$') { $exe = $matches[1]; $argStr = $matches[2] }
+                    else { $tk = $unins -split ' ',2; $exe = $tk[0]; $argStr = if ($tk.Count -gt 1) { $tk[1] } else { '' } }
+                    if ($argStr -notmatch '/quiet|/qn|/silent|/S\b') { $argStr = "$argStr /quiet /norestart" }
+                    if (Test-Path $exe) {
+                        $pu = Start-Process -FilePath $exe -ArgumentList $argStr -WindowStyle Hidden -PassThru -ErrorAction SilentlyContinue
+                        if ($pu) { if (-not $pu.WaitForExit(180000)) { try { $pu.Kill() } catch {} }
+                                   Write-Host "     desinstalado: $($_.DisplayName)" }
+                    }
+                } catch {}
+            } }
+        Write-Host '   apagando pastas residuais...'
+        @("$env:ProgramFiles\McAfee","${env:ProgramFiles(x86)}\McAfee","$env:ProgramData\McAfee","$env:LOCALAPPDATA\McAfee","$env:APPDATA\McAfee") |
+            ForEach-Object { if (Test-Path $_) { Remove-Item $_ -Recurse -Force -ErrorAction SilentlyContinue } }
+        sc.exe delete 'McAfee WebAdvisor' 2>$null | Out-Null
+        Write-Host '   McAfee exterminado (confirmacao final apos o reboot).' -ForegroundColor Green
+    } else { Write-Host '   ok, McAfee mantido.' }
+}
+
 # ============ [2/9] DESINTOXICAR INICIALIZACAO ============
 Write-Host "`n[2/9] Desintoxicando a inicializacao (backup em $UTIDIR)..." -ForegroundColor Cyan
 reg export "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" "$UTIDIR\backup-run-hkcu.reg" /y 2>$null | Out-Null
@@ -104,7 +148,8 @@ Remove-Item 'C:\Windows\Temp\*' -Recurse -Force -ErrorAction SilentlyContinue
 
 # ============ [4/9] CACHE DO WINDOWS UPDATE ============
 Write-Host "`n[4/9] Limpando cache do Windows Update..." -ForegroundColor Cyan
-Stop-Service wuauserv,bits -Force -ErrorAction SilentlyContinue
+Write-Host '   parando servicos do WU (pode levar 1-2 min)...'
+Stop-Service wuauserv,bits -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
 Remove-Item 'C:\Windows\SoftwareDistribution\Download\*' -Recurse -Force -ErrorAction SilentlyContinue
 Start-Service bits,wuauserv -ErrorAction SilentlyContinue
 Delete-DeliveryOptimizationCache -Force -ErrorAction SilentlyContinue
