@@ -199,13 +199,23 @@ Write-Host '   (winsock reset completa no proximo reboot)'
 # MataSeTravar=$true  -> etapa so-leitura: aborta no timeout e segue a vida
 # MataSeTravar=$false -> etapa que ESCREVE no sistema: NUNCA mata (perigoso);
 #                        avisa a cada 15 min e continua esperando
+# Quando a saida vai por PIPE (transcript/Out-String), cada nativo fala uma lingua:
+# DISM emite ANSI (1252) e SFC emite UTF-16 - decodificar errado da "Manutenbòo"/"V e r i f".
+$ENC_PADRAO = [Console]::OutputEncoding
+function Set-EncNativo([string]$exe) {
+    if     ($exe -match 'dism') { [Console]::OutputEncoding = [Text.Encoding]::GetEncoding(1252) }
+    elseif ($exe -match 'sfc')  { [Console]::OutputEncoding = [Text.Encoding]::Unicode }
+    else                        { [Console]::OutputEncoding = $ENC_PADRAO }
+}
+
 function Run-Etapa {
     param([string]$Desc, [string]$Exe, [string]$Argumentos, [int]$TimeoutMin, [bool]$MataSeTravar)
     $t0 = Get-Date
     if ($MODO_LOG) {
         # modo pericia: chamada direta -> transcript captura toda a saida; sem watchdog
         Write-Host "   --- $Desc (log completo, sem limite) ---" -ForegroundColor Cyan
-        & $Exe ($Argumentos -split ' ')
+        Set-EncNativo $Exe
+        try { & $Exe ($Argumentos -split ' ') } finally { [Console]::OutputEncoding = $ENC_PADRAO }
         Write-Host ("   ('{0}' terminou em {1} min)" -f $Desc, [math]::Round(((Get-Date) - $t0).TotalMinutes, 1))
         return
     }
@@ -230,14 +240,18 @@ function Run-Etapa {
 
 # ============ [6/9] DISM COMPLETO ============
 Write-Host "`n[6/9] BATERIA DISM - fase LONGA (15 a 60+ min no total; '62% parado' e normal, NAO e travamento)" -ForegroundColor Cyan
+Set-EncNativo 'dism'
 dism /Online /Cleanup-Image /CheckHealth
+[Console]::OutputEncoding = $ENC_PADRAO
 Run-Etapa 'ScanHealth'            'dism' '/Online /Cleanup-Image /ScanHealth'            30 $true
 Run-Etapa 'RestoreHealth'         'dism' '/Online /Cleanup-Image /RestoreHealth'         60 $false
 Run-Etapa 'AnalyzeComponentStore' 'dism' '/Online /Cleanup-Image /AnalyzeComponentStore' 15 $true
 Run-Etapa 'StartComponentCleanup' 'dism' '/Online /Cleanup-Image /StartComponentCleanup' 60 $false
 
 # ---- pericia pos-DISM: se continuar "reparavel", extrai o laudo do CBS.log ----
+Set-EncNativo 'dism'
 $chk = (dism /Online /Cleanup-Image /CheckHealth | Out-String)
+[Console]::OutputEncoding = $ENC_PADRAO
 if ($chk -match 'repairable|reparable|reparavel|repar') {
     Write-Host ''
     Write-Host '   PERICIA: repositorio segue "reparavel" apos RestoreHealth - extraindo laudo do CBS.log...' -ForegroundColor Yellow
