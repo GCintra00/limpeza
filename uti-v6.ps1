@@ -203,9 +203,11 @@ Write-Host '   (winsock reset completa no proximo reboot)'
 # DISM emite ANSI (1252) e SFC emite UTF-16 - decodificar errado da "Manutenbòo"/"V e r i f".
 $ENC_PADRAO = [Console]::OutputEncoding
 function Set-EncNativo([string]$exe) {
-    if     ($exe -match 'dism') { [Console]::OutputEncoding = [Text.Encoding]::GetEncoding(1252) }
-    elseif ($exe -match 'sfc')  { [Console]::OutputEncoding = [Text.Encoding]::Unicode }
-    else                        { [Console]::OutputEncoding = $ENC_PADRAO }
+    # dism e defrag falam ANSI 1252; sfc fala UTF-16; chkdsk usa o padrao do console.
+    # (defrag confirmado no log do Vostro 5320 em 30/07: saia "A opera??o foi conclu?da")
+    if     ($exe -match 'dism|defrag') { [Console]::OutputEncoding = [Text.Encoding]::GetEncoding(1252) }
+    elseif ($exe -match 'sfc')         { [Console]::OutputEncoding = [Text.Encoding]::Unicode }
+    else                               { [Console]::OutputEncoding = $ENC_PADRAO }
 }
 
 function Run-Etapa {
