@@ -52,11 +52,30 @@ if (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based S
 if (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired') { $pend += 'WindowsUpdate' }
 if ((Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager' -Name PendingFileRenameOperations -ErrorAction SilentlyContinue)) { $pend += 'RenamePendente' }
 if ($pend) {
+    # Fast Startup OFF **ANTES** de mandar reiniciar (mudanca 05/08/2026):
+    # se a gente aborta pedindo reboot com o Fast Startup ainda LIGADO, o
+    # "desligar e ligar" da pessoa faz desligamento hibrido e as pendencias
+    # NAO assentam — o proximo diagnostico sai igualmente sujo.
+    powercfg /hibernate off 2>$null
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power' -Name HiberbootEnabled -Value 0 -PropertyType DWord -Force | Out-Null
     Write-Host ''
     Write-Host ("AVISO: este PC tem REINICIO PENDENTE ($($pend -join ', ')) - reparos/updates anteriores ainda nao assentaram.") -ForegroundColor Yellow
     Write-Host '  -> o ideal e REINICIAR antes da UTI, senao o diagnostico sai sujo.' -ForegroundColor Yellow
+    Write-Host '  (Fast Startup ja foi desativado agora, para que o reinicio valha de verdade.)' -ForegroundColor Green
     $cont = Read-Host 'Continuar mesmo assim? [s/N]'
-    if ($cont -notmatch '^[sSyY]') { Write-Host 'OK - reinicie e rode a UTI de novo.'; Stop-Transcript | Out-Null; return }
+    if ($cont -notmatch '^[sSyY]') {
+        Write-Host ''
+        $rb0 = Read-Host 'REINICIAR AGORA e rodar a UTI depois? [S/n]'
+        if ($rb0 -notmatch '^[nN]') {
+            Write-Host 'Reiniciando em 20 segundos... (cancelar: shutdown /a)' -ForegroundColor Yellow
+            Write-Host 'Depois do boot, rode a UTI de novo.' -ForegroundColor Yellow
+            Stop-Transcript | Out-Null
+            shutdown /r /f /t 20 /c "UTI do Windows: reinicio para assentar reparos pendentes antes do diagnostico"
+            return
+        }
+        Write-Host 'OK - use INICIAR > Reiniciar (nao "Desligar") e rode a UTI de novo.' -ForegroundColor Yellow
+        Stop-Transcript | Out-Null; return
+    }
 }
 
 # ---- nao deixar o PC dormir no meio ----
