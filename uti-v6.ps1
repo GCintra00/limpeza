@@ -203,11 +203,21 @@ Write-Host '   (winsock reset completa no proximo reboot)'
 # DISM emite ANSI (1252) e SFC emite UTF-16 - decodificar errado da "Manutenbòo"/"V e r i f".
 $ENC_PADRAO = [Console]::OutputEncoding
 function Set-EncNativo([string]$exe) {
-    # dism e defrag falam ANSI 1252; sfc fala UTF-16; chkdsk usa o padrao do console.
-    # (defrag confirmado no log do Vostro 5320 em 30/07: saia "A opera??o foi conclu?da")
-    if     ($exe -match 'dism|defrag') { [Console]::OutputEncoding = [Text.Encoding]::GetEncoding(1252) }
-    elseif ($exe -match 'sfc')         { [Console]::OutputEncoding = [Text.Encoding]::Unicode }
-    else                               { [Console]::OutputEncoding = $ENC_PADRAO }
+    # Cada nativo fala uma lingua quando a saida vai por PIPE:
+    #   dism   -> ANSI 1252
+    #   sfc    -> UTF-16
+    #   defrag -> OEM (850 em pt-BR). Descoberto em 2 etapas: com o padrao saia
+    #             "A opera??o"; forcando 1252 saiu "A opera‡Æo" (= CP850 lido
+    #             como 1252). Agora usa o OEM code page real do sistema.
+    #   chkdsk -> ja sai certo com o padrao do console; nao mexer.
+    if     ($exe -match 'dism') { [Console]::OutputEncoding = [Text.Encoding]::GetEncoding(1252) }
+    elseif ($exe -match 'sfc')  { [Console]::OutputEncoding = [Text.Encoding]::Unicode }
+    elseif ($exe -match 'defrag') {
+        $oem = 850
+        try { $oem = [int](Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Nls\CodePage' -Name OEMCP -ErrorAction Stop).OEMCP } catch {}
+        try { [Console]::OutputEncoding = [Text.Encoding]::GetEncoding($oem) } catch { [Console]::OutputEncoding = $ENC_PADRAO }
+    }
+    else { [Console]::OutputEncoding = $ENC_PADRAO }
 }
 
 function Run-Etapa {
