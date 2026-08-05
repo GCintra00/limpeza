@@ -347,12 +347,24 @@ Write-Host '   so valem apos o reboot.' -ForegroundColor Yellow
 Write-Host ' Log completo + backups: Desktop\UTI-backup'
 Write-Host '   (reverter startup: duplo clique no .reg / mover o .lnk de volta)'
 Write-Host '====================================================='
-Stop-Transcript | Out-Null
-$rb = Read-Host 'REINICIAR AGORA (recomendado - os reparos so valem apos o reboot)? [S/n]'
-if ($rb -notmatch '^[nN]') {
-    Write-Host 'Reiniciando em 20 segundos... (feche o que precisar; cancelar: shutdown /a)' -ForegroundColor Yellow
-    shutdown /r /t 20 /c "UTI do Windows: reinicio para aplicar os reparos (DISM/winsock/boot limpo)"
+# ============ REINICIO (default = SIM) ============
+# Logica invertida de proposito (04/08/2026): o reboot ja fica AGENDADO e a
+# pergunta serve pra CANCELAR. Motivo real: no caso da drocha o PC passou 3
+# rodadas de UTI sem reiniciar nenhuma vez (fechou a janela / ignorou a
+# pergunta) e o SFC nunca conseguiu rodar. Se ninguem responder, o PC reinicia.
+# A decisao fica registrada ANTES do Stop-Transcript, pra aparecer no log.
+shutdown /r /f /t 180 /c "UTI do Windows: reinicio para aplicar os reparos (DISM/SFC/winsock/boot limpo)" 2>$null
+Write-Host ''
+Write-Host ' >>> O PC VAI REINICIAR EM 3 MINUTOS.' -ForegroundColor Yellow
+Write-Host '     Os reparos (DISM/SFC/winsock) SO VALEM depois do reboot —' -ForegroundColor Yellow
+Write-Host '     e "Desligar e ligar" NAO substitui o Reiniciar.' -ForegroundColor Yellow
+$rb = Read-Host 'Deixar reiniciar agora? [S/n]  (N cancela e reinicia depois)'
+if ($rb -match '^[nN]') {
+    shutdown /a 2>$null
+    Write-Host 'CANCELADO pelo usuario - reinicio NAO vai acontecer agora.' -ForegroundColor Red
+    Write-Host 'IMPORTANTE: use INICIAR > Reiniciar assim que puder (nao "Desligar").' -ForegroundColor Yellow
+    Write-Host 'Enquanto nao reiniciar, o SFC pode falhar e os updates nao assentam.' -ForegroundColor Yellow
 } else {
-    Write-Host 'OK - mas REINICIE assim que puder: DISM/winsock/boot limpo so valem apos o reboot.' -ForegroundColor Yellow
-    Read-Host 'Pressione ENTER para sair'
+    Write-Host 'OK - reiniciando. (para abortar: shutdown /a)' -ForegroundColor Green
 }
+Stop-Transcript | Out-Null
