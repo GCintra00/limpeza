@@ -187,8 +187,12 @@ foreach ($u in Get-ChildItem C:\Users -Directory -ErrorAction SilentlyContinue) 
                           "$p\AppData\Local\Vivaldi\User Data")) {
         Get-ChildItem $udroot -Directory -ErrorAction SilentlyContinue |
             Where-Object { $_.Name -match '^(Default|Profile \d+)$' } | ForEach-Object {
-                Remove-Item "$($_.FullName)\Cache\Cache_Data\*" -Recurse -Force -ErrorAction SilentlyContinue
-                Remove-Item "$($_.FullName)\Code Cache\js\*" -Recurse -Force -ErrorAction SilentlyContinue } }
+                # try/catch (nao so -ErrorAction): quando o Chrome apaga um arquivo do
+                # cache NO MEIO da limpeza, o Remove-Item lanca PSArgumentException
+                # ("nao existe objeto no caminho"), que o -ErrorAction nao silencia.
+                # Aconteceu no notebook da cluca em 05/08/2026 (Profile 1).
+                try { Remove-Item "$($_.FullName)\Cache\Cache_Data\*" -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+                try { Remove-Item "$($_.FullName)\Code Cache\js\*"   -Recurse -Force -ErrorAction SilentlyContinue } catch {} } }
     @("$p\AppData\Local\Microsoft\Windows\INetCache\IE",
       "$p\AppData\Roaming\Adobe\Common\Media Cache Files") | ForEach-Object {
         Remove-Item "$_\*" -Recurse -Force -ErrorAction SilentlyContinue }
